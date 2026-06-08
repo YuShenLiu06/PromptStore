@@ -60,10 +60,20 @@ class PromptStore:
     # ------------------------------------------------------------------
 
     def register(self, fragment: PromptFragment) -> PromptStore:
-        """注册片段。从 fragment.section_type 读取归属 section。"""
+        """注册片段。从 fragment.section_type 读取归属 section。
+
+        去重规则: 若目标 section 中已存在内容完全相同的片段则跳过注册，
+        记录 WARNING 日志并返回当前 store 不变。
+        """
         updated = dict(self._fragments)
         for section in fragment.section_type:
             existing = updated.get(section, ())
+            if fragment in existing:
+                logger.warning(
+                    "跳过重复注册: section=%s source=%s order=%d dispatch=%d",
+                    section, fragment.source, fragment.order, fragment.dispatch,
+                )
+                continue
             updated[section] = existing + (fragment,)
         return PromptStore(_fragments=updated)
 
@@ -131,7 +141,12 @@ class PromptStore:
             if len(group) == 1:
                 resolved.append(group[0])
             else:
-                winner = max(group, key=lambda f: f.dispatch)
+                # 仲裁规则: dispatch 高者胜出; dispatch 相同时 builtin 优先
+                # (builtin 是安全回退，用户自定义片段需以更高 dispatch 覆盖)
+                winner = max(
+                    group,
+                    key=lambda f: (f.dispatch, 1 if f.source == "builtin" else 0),
+                )
                 resolved.append(winner)
 
         # 按 order 升序拼接
