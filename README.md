@@ -183,8 +183,8 @@ builtin/
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `section_type` | `list[str]` | 是 | 归属 section 列表（如 `["body"]` 或 `["*"]`） |
-| `template` | `list[str]` | 否 | 生效模板列表（默认 `["*"]`） |
+| `section_type` | `tuple[str, ...]` | 是 | 归属 section 列表（如 `("body",)` 或 `("*",)`，构造时接受 list 输入） |
+| `template` | `tuple[str, ...]` | 否 | 生效模板列表（默认 `("*",)`，构造时接受 list 输入） |
 | `source` | `str` | 否 | 来源标签（默认 `"unknown"`） |
 | `order` | `int` | 是 | 在提示词中的位置（升序排列） |
 | `dispatch` | `int` | 否 | 同 order 冲突解决（高者胜出，默认 0） |
@@ -227,12 +227,16 @@ builtin/
 
 2. 过滤
    ├── enabled=False → 排除
-   ├── id() 去重
+   ├── 值去重（哈希）
    └── template_id 不匹配 → 排除
 
 3. 按 order 分组
    ├── 同 order 只有 1 个 → 直接采用
-   └── 同 order 有多个 → dispatch 仲裁（高者胜出）
+   └── 同 order 有多个 → 确定性仲裁
+       1. dispatch 高者胜出
+       2. dispatch 相同 → builtin 优先
+       3. 仍相同 → source 字典序决胜
+       4. 最终 → content 字典序决胜（保证全序）
 
 4. 按 order 升序拼接 → 返回完整提示词
 ```

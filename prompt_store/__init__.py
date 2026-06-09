@@ -29,13 +29,20 @@ WILD_CARD = "*"
 class PromptFragment:
     """单个提示词片段。可独立注册，由 section 的 get_full_prompt() 聚合。"""
 
-    section_type: list[str]  # 归属 section 列表（如 ["body"] 或 ["*"]）
-    template: list[str]      # 生效模板列表（如 ["thesis_v1"] 或 ["*"]）
+    section_type: tuple[str, ...]  # 归属 section 列表（如 ("body",) 或 ("*",)）
+    template: tuple[str, ...]      # 生效模板列表（如 ("thesis_v1",) 或 ("*",)）
     source: str        # "builtin" / "template:xxx" / "runtime:xxx" / "plugin:xxx"
     order: int         # 在提示词中的位置（升序排列）
     dispatch: int      # 同 order 冲突解决（高者胜出）
     content: str       # 片段内容
     enabled: bool = True
+
+    def __post_init__(self) -> None:
+        """接受 list 输入并自动转为 tuple，保持向后兼容。"""
+        if not isinstance(self.section_type, tuple):
+            object.__setattr__(self, "section_type", tuple(self.section_type))
+        if not isinstance(self.template, tuple):
+            object.__setattr__(self, "template", tuple(self.template))
 
 
 # ---------------------------------------------------------------------------
@@ -101,18 +108,17 @@ class PromptStore:
         """
         # 收集候选片段
         candidates: list[PromptFragment] = []
-        seen: set[int] = set()  # id(fragment) 去重
+        seen: set[PromptFragment] = set()  # 值去重（依赖哈希）
 
         def add_to_candidates(fragments: tuple[PromptFragment, ...]) -> None:
             for f in fragments:
                 if not f.enabled:
                     continue
-                fid = id(f)
-                if fid in seen:
+                if f in seen:
                     continue
                 if template_id not in f.template and "*" not in f.template:
                     continue
-                seen.add(fid)
+                seen.add(f)
                 candidates.append(f)
 
         # WILD_CARD 全局片段
@@ -125,6 +131,11 @@ class PromptStore:
         # fallback 到 body（仅当无专属片段时）
         if not section_frags and section_type != "body":
             body_frags = self._fragments.get("body", ())
+            if body_frags:
+                logger.info(
+                    "section=%s 无专属片段，fallback 到 body（%d 个片段）",
+                    section_type, len(body_frags),
+                )
             add_to_candidates(body_frags)
 
         if not candidates:
@@ -141,11 +152,16 @@ class PromptStore:
             if len(group) == 1:
                 resolved.append(group[0])
             else:
-                # 仲裁规则: dispatch 高者胜出; dispatch 相同时 builtin 优先
-                # (builtin 是安全回退，用户自定义片段需以更高 dispatch 覆盖)
+                # 仲裁规则: dispatch 高者胜出; dispatch 相同时 builtin 优先;
+                # 仍相同时按 source 字典序，最后按 content 确保完全确定性。
                 winner = max(
                     group,
-                    key=lambda f: (f.dispatch, 1 if f.source == "builtin" else 0),
+                    key=lambda f: (
+                        f.dispatch,
+                        1 if f.source == "builtin" else 0,
+                        f.source,
+                        f.content,
+                    ),
                 )
                 resolved.append(winner)
 
@@ -210,17 +226,10 @@ def create_store_from_dir(dir_path: Path) -> PromptStore:
     加载流程:
     1. 扫描目录下所有子目录的 .json 文件
     2. 每个 JSON 文件对应一个 PromptFragment（含 section_type）
-    3. 按 section_type 展开，填充 _fragments dict
+    3. 通过 register_many() 统一注册（去重、日志、一致性）
     """
     fragments = load_fragments_from_dir(dir_path)
-
-    frag_dict: dict[str, tuple[PromptFragment, ...]] = {}
-    for frag in fragments:
-        for section in frag.section_type:
-            existing = frag_dict.get(section, ())
-            frag_dict[section] = existing + (frag,)
-
-    return PromptStore(_fragments=frag_dict)
+    return PromptStore().register_many(fragments)
 
 
 __all__ = [
