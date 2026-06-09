@@ -34,10 +34,10 @@ from prompt_store import PromptStore, PromptFragment, WILD_CARD
 # 创建空 store
 store = PromptStore()
 
-# 注册全局片段
+# 注册全局片段（section_type/template 接受 list 输入，内部自动转为 tuple）
 base = PromptFragment(
-    section_type=[WILD_CARD],
-    template=["*"],
+    section_type=(WILD_CARD,),
+    template=("*",),
     source="builtin",
     order=0,
     dispatch=0,
@@ -47,8 +47,8 @@ store = store.register(base)
 
 # 注册 body 专属片段
 body_instruction = PromptFragment(
-    section_type=["body"],
-    template=["*"],
+    section_type=("body",),
+    template=("*",),
     source="builtin",
     order=10,
     dispatch=0,
@@ -70,8 +70,8 @@ print(prompt)
 
 ```python
 abstract_inst = PromptFragment(
-    section_type=["abstract"],
-    template=["*"],
+    section_type=("abstract",),
+    template=("*",),
     source="builtin",
     order=10,
     dispatch=0,
@@ -79,8 +79,8 @@ abstract_inst = PromptFragment(
 )
 
 abstract_examples = PromptFragment(
-    section_type=["abstract"],
-    template=["*"],
+    section_type=("abstract",),
+    template=("*",),
     source="builtin",
     order=20,
     dispatch=0,
@@ -97,8 +97,8 @@ prompt = store.get_full_prompt("abstract")
 ```python
 # 仅对 thesis_v1 模板生效的片段
 thesis_only = PromptFragment(
-    section_type=["body"],
-    template=["thesis_v1"],
+    section_type=("body",),
+    template=("thesis_v1",),
     source="template:thesis_v1",
     order=5,
     dispatch=10,  # dispatch 高于其他同 order 片段
@@ -119,13 +119,13 @@ prompt = store.get_full_prompt("body", template_id="other_template")
 ```python
 # 两个片段在同一个 order，通过 dispatch 仲裁
 default_inst = PromptFragment(
-    section_type=["body"], template=["*"],
+    section_type=("body",), template=("*",),
     source="builtin", order=10, dispatch=0,
     content="默认指令。",
 )
 
 template_override = PromptFragment(
-    section_type=["body"], template=["thesis_v1"],
+    section_type=("body",), template=("thesis_v1",),
     source="template:thesis_v1", order=10, dispatch=100,
     content="模板专属指令（覆盖默认）。",
 )
