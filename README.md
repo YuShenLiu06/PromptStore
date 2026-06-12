@@ -7,9 +7,13 @@
 ## 安装
 
 ```bash
-pip install prompt-store
-# 或本地安装
-pip install -e /path/to/PromptStore
+# 从 GitHub 安装
+pip install git+https://github.com/YuShenLiu06/PromptStore.git
+
+# 或克隆后本地可编辑安装
+git clone https://github.com/YuShenLiu06/PromptStore.git
+cd PromptStore
+pip install -e .
 ```
 
 **依赖**: 零外部依赖，仅标准库 (`dataclasses`, `json`, `pathlib`, `logging`)。
