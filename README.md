@@ -10,8 +10,16 @@
 # 从 GitHub 安装
 pip install git+https://github.com/YuShenLiu06/PromptStore.git
 
+# 或从 Gitee 安装
+pip install git+https://gitee.com/yushenliu03/PromptStore.git
+
 # 或克隆后本地可编辑安装
 git clone https://github.com/YuShenLiu06/PromptStore.git
+cd PromptStore
+pip install -e .
+
+# 使用 Gitee 克隆后安装
+git clone https://gitee.com/yushenliu03/PromptStore.git
 cd PromptStore
 pip install -e .
 ```
