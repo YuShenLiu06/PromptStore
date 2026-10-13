@@ -1,2 +1,5 @@
 verify_changes.py
 prompt_store/__pycache__/__init__.cpython-313.pyc
+
+# 本地示例（演示脚本 + JSON 提示词数据，不入库）
+examples/
